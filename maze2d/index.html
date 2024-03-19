@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2d-maze</title>
+    <style>
+      html {
+        background-color: whitesmoke;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: row;
+        height: 100vh;
+      }
+      main {
+        display: flex;
+        position: relative;
+      }
+      #enable-gyroscope {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: calc(15px * 26);
+        height: calc(15px * 20);
+        z-index: 2;
+      }
+      #canvas {
+        z-index: 1;
+      }
+      #controller-container {
+        text-align: center;
+      }
+      #controller {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        width: 170px;
+        height: 170px;
+      }
+      #container {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 20px;
+        margin-left: 40px;
+      }
+    </style>
+    <script>
+      if (
+        screen.orientation.type === "portrait-primary" ||
+        screen.orientation.type === "portrait-secondary"
+      ) {
+        alert("please use landscape mode");
+      } else if (screen.orientation.type === "landscape-primary") {
+        alert("please rotate your device");
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <button id="enable-gyroscope">Firstly, click to enable gyroscope</button>
+      <canvas id="canvas"></canvas>
+      <div id="container">
+        <div id="ation-container">
+          <div id="time">time: -</div>
+          <div id="collision-count">collision: 0</div>
+        </div>
+        <div id="controller-container">
+          <button id="start">start</button>
+          <canvas id="controller"></canvas>
+        </div>
+      </div>
+    </main>
+    <script>
+      var maze = `
+        1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+        1	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	1	0	0	0	0	0	1	0	1
+        1	0	0	1	1	1	1	1	1	1	1	0	1	1	1	1	0	1	0	1	1	1	0	1	0	1
+        1	0	0	1	0	0	0	0	0	0	0	0	1	1	1	1	0	1	0	1	1	1	0	1	0	1
+        1	1	0	1	0	1	1	1	1	1	1	1	1	1	1	1	0	1	0	1	1	1	0	0	0	1
+        1	1	0	1	0	1	1	1	1	1	0	0	0	0	0	1	0	1	0	1	1	1	1	1	0	1
+        1	0	0	1	0	1	1	1	1	1	0	1	1	1	0	1	0	1	0	1	0	0	0	1	0	1
+        1	0	1	1	0	0	0	0	1	1	0	1	0	0	0	1	0	1	0	0	0	0	0	1	0	1
+        1	0	1	1	1	1	1	0	1	1	0	1	1	1	1	1	0	1	0	1	0	0	0	1	0	1
+        1	0	1	1	1	1	1	0	1	1	0	0	0	0	0	0	0	1	0	1	0	0	0	1	0	1
+        1	0	0	0	0	0	0	0	1	1	1	1	0	1	1	1	1	1	0	1	0	0	0	1	1	1
+        1	1	1	1	1	0	1	1	1	1	1	1	0	1	1	0	0	0	0	1	0	0	0	0	0	1
+        1	0	1	1	1	0	0	0	0	0	0	0	0	1	1	0	1	1	1	1	1	1	1	1	0	1
+        1	0	1	1	1	1	0	1	1	1	1	1	1	1	1	0	0	0	0	0	0	0	0	0	0	1
+        1	0	0	0	0	0	0	1	0	0	0	1	1	1	1	0	0	0	1	1	1	1	1	1	1	1
+        1	1	0	1	1	1	1	1	0	1	0	1	1	0	0	0	0	0	0	0	0	0	0	0	0	1
+        1	1	0	1	1	1	1	1	0	1	0	1	1	0	1	1	1	1	0	1	1	1	1	1	0	1
+        1	1	0	1	1	1	1	1	0	1	0	0	0	0	1	1	0	0	0	1	1	1	1	1	0	1
+        1	1	0	0	0	0	0	0	0	1	1	1	1	1	1	0	0	1	0	0	0	0	0	0	0	1
+        1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+      `;
+      var mazeArray = maze
+        .trim()
+        .split("\n")
+        .map((row) => row.trim().split("\t"));
+    </script>
+
+    <script>
+      var canvas = document.getElementById("canvas");
+      var ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+      var cellSize = 15;
+      var ballRadius = cellSize / 3;
+      var rows = mazeArray.length;
+      var cols = mazeArray[0].length;
+      var width = cellSize * cols;
+      var height = cellSize * rows;
+
+      canvas.width = width;
+      canvas.height = height;
+
+      var ball = {
+        x: 1 * cellSize + cellSize / 2,
+        y: 1 * cellSize + cellSize / 2,
+      };
+
+      var goal = {
+        x: (cols - 2) * cellSize + cellSize / 2,
+        y: (rows - 2) * cellSize + cellSize / 2,
+      };
+
+      function drawGoal() {
+        ctx.fillStyle = "green";
+        ctx.beginPath();
+        ctx.arc(goal.x, goal.y, ballRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function isGoal() {
+        const dx = ball.x - goal.x;
+        const dy = ball.y - goal.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance < ballRadius * 2;
+      }
+
+      function drawMaze() {
+        for (var row = 0; row < rows; row++) {
+          for (var col = 0; col < cols; col++) {
+            var cell = mazeArray[row][col];
+            var x = col * cellSize;
+            var y = row * cellSize;
+
+            if (cell === "1") {
+              ctx.fillStyle = "black";
+              ctx.fillRect(x, y, cellSize, cellSize);
+            }
+          }
+        }
+      }
+
+      function drawBall() {
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function detectCollision(x, y) {
+        const direction = [
+          [0, 1],
+          [0, -1],
+          [1, 0],
+          [-1, 0],
+        ];
+
+        for (let i = 0; i < 4; i++) {
+          const dx = direction[i][0];
+          const dy = direction[i][1];
+          const nx = x + dx * (ballRadius - 1);
+          const ny = y + dy * (ballRadius - 1);
+
+          const img = ctx.getImageData(nx, ny, 1, 1).data;
+          if (img[0] === 0 && img[1] === 0 && img[2] === 0) {
+            console.info("collision", nx, ny);
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function handleKeyDown(event) {
+        var key = event.key;
+        var newX = ball.x;
+        var newY = ball.y;
+
+        if (key == "ArrowUp") {
+          newY -= 1;
+        } else if (key == "ArrowDown") {
+          newY += 1;
+        } else if (key == "ArrowLeft") {
+          newX -= 1;
+        } else if (key == "ArrowRight") {
+          newX += 1;
+        }
+
+        if (detectCollision(newX, newY)) {
+          collisionCount++;
+          return;
+        }
+
+        ball.x = newX;
+        ball.y = newY;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawBall();
+        drawGoal();
+        drawMaze();
+      }
+
+      function handleOrientation(event) {
+        let beta = event.beta;
+        let gamma = event.gamma;
+
+        beta = Math.min(Math.max(beta, -10), 10);
+        gamma = Math.min(Math.max(gamma, -10), 10);
+
+        const newX = ball.x + beta / 10;
+        const newY = ball.y - gamma / 10;
+
+        if (detectCollision(newX, newY)) {
+          collisionCount++;
+          return;
+        }
+
+        ball.x = newX;
+        ball.y = newY;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawBall();
+        drawGoal();
+        drawMaze();
+      }
+
+      drawBall();
+      drawGoal();
+      drawMaze();
+
+      window.addEventListener("keydown", handleKeyDown);
+
+      const button = document.getElementById("enable-gyroscope");
+
+      button.addEventListener("click", () => {
+        if (typeof DeviceOrientationEvent === undefined) {
+          alert("your device does not support gyroscope");
+        } else if (
+          typeof DeviceOrientationEvent.requestPermission === "function"
+        ) {
+          DeviceOrientationEvent.requestPermission()
+            .then((res) => {
+              if (res === "granted") {
+                window.addEventListener("deviceorientation", (event) => {
+                  handleOrientation(event), handleOrientationController(event);
+                });
+              }
+            })
+            .catch(console.error);
+        } else {
+          window.addEventListener("deviceorientation", (event) => {
+            handleOrientation(event), handleOrientationController(event);
+          });
+        }
+        button.remove();
+      });
+    </script>
+    <script>
+      const controller = document.getElementById("controller");
+      const ctx2 = controller.getContext("2d");
+
+      controller.width = 150;
+      controller.height = 150;
+
+      function drawBoard() {
+        ctx2.beginPath();
+        ctx2.fillStyle = "#000";
+        ctx2.rect(0, 0, controller.width, controller.height);
+
+        ctx2.fillStyle = "rgba(220, 220, 220, 0.8)";
+        ctx2.beginPath();
+        ctx2.arc(75, 75, 35, 0, Math.PI * 2);
+        ctx2.fill();
+
+        ctx2.fillStyle = "rgba(240, 240, 240, 0.5)";
+        ctx2.beginPath();
+        ctx2.arc(75, 75, 20, 0, Math.PI * 2);
+        ctx2.fill();
+
+        // write text
+        ctx2.fillStyle = "#000";
+        ctx2.font = "13px Arial";
+        ctx2.fillText("gyro sensor", 43, 130);
+      }
+
+      function drawCircle(x, y) {
+        ctx2.fillStyle = "red";
+        ctx2.beginPath();
+        ctx2.arc(x, y, 5, 0, Math.PI * 2);
+        ctx2.fill();
+      }
+
+      function handleOrientationController(event) {
+        let beta = event.beta;
+        let gamma = event.gamma;
+
+        beta = Math.min(Math.max(beta, -10), 10);
+        gamma = Math.min(Math.max(gamma, -10), 10);
+
+        const newX = 75 + beta * 3;
+        const newY = 75 - gamma * 3;
+
+        ctx2.clearRect(0, 0, controller.width, controller.height);
+        drawBoard();
+        drawCircle(newX, newY);
+      }
+
+      drawBoard();
+      drawCircle(75, 75);
+    </script>
+    <script>
+      let time = 0;
+      let collisionCount = 0;
+      let interval;
+
+      function init() {
+        collisionCount = 0;
+        time = 0;
+        ball.x = 1 * cellSize + cellSize / 2;
+        ball.y = 1 * cellSize + cellSize / 2;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBall();
+        drawGoal();
+        drawMaze();
+      }
+
+      function start() {
+        init();
+        interval && clearInterval(interval);
+        interval = setInterval(() => {
+          document.getElementById("time").textContent = `time: ${time++}`;
+          document.getElementById(
+            "collision-count"
+          ).textContent = `collision: ${collisionCount}`;
+          if (isGoal()) {
+            alert(
+              `Goal!! score: ${Math.round(10000 / (time + collisionCount * 5))}`
+            );
+            clearInterval(interval);
+          }
+        }, 100);
+      }
+
+      const startButton = document.getElementById("start");
+      startButton.addEventListener("click", () => {
+        start();
+        startButton.innerText = "restart";
+      });
+    </script>
+  </body>
+</html>
