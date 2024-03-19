@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tower of hanoi</title>
+    <style>
+      body {
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 100px;
+      }
+
+      .container {
+        position: relative;
+        display: flex;
+        height: 200px;
+        width: 500px;
+        justify-content: space-around;
+      }
+
+      .tower-clickable {
+        width: 150px;
+        display: flex;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .tower {
+        height: 200px;
+        width: 5px;
+        background-color: #1e1e1e;
+      }
+
+      .disk {
+        position: absolute;
+        height: 15px;
+        transform: translateX(calc(-50% + 2.5px));
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Tower of Hanoi</h1>
+    <div class="container">
+      <div class="tower-clickable" onclick="selectTower(0)">
+        <div id="tower0" class="tower"></div>
+      </div>
+      <div class="tower-clickable" onclick="selectTower(1)">
+        <div id="tower1" class="tower"></div>
+      </div>
+      <div class="tower-clickable" onclick="selectTower(2)">
+        <div id="tower2" class="tower"></div>
+      </div>
+    </div>
+    <script>
+      const colors = ["red", "blue", "green", "yellow", "purple"];
+
+      let selected = null;
+      const towers = [[4, 3, 2, 1, 0], [], []];
+
+      function selectTower(tower) {
+        if (selected == null) {
+          if (towers[tower].length > 0) {
+            selected = tower;
+          }
+        } else {
+          moveDist(selected, tower);
+          selected = null;
+        }
+        render();
+      }
+
+      function moveDist(from, to) {
+        if (towers[from].length === 0) return;
+        if (
+          towers[to].length > 0 &&
+          towers[from][towers[from].length - 1] >
+            towers[to][towers[to].length - 1]
+        )
+          return;
+        const disk = towers[from].pop();
+        towers[to].push(disk);
+      }
+
+      function render() {
+        console.log(towers);
+        for (let i = 0; i < 3; i++) {
+          document.querySelector(`#tower${i}`).innerHTML = "";
+          for (let j = 0; j < towers[i].length; j++) {
+            const disk = document.createElement("div");
+            disk.classList.add("disk");
+            disk.style.width = `${towers[i][j] * 30 + 30}px`;
+            disk.style.backgroundColor = colors[towers[i][j]];
+            disk.style.bottom = `${j * 15}px`;
+            if (i == selected && j == towers[i].length - 1) {
+              disk.style.border = "2px solid black";
+            }
+            document.querySelector(`#tower${i}`).appendChild(disk);
+          }
+        }
+      }
+
+      render();
+    </script>
+  </body>
+</html>
